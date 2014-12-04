@@ -6,10 +6,19 @@
 	<link rel="stylesheet" type="text/css" href="css/main.css">
 </head>
 <body>	
-	<div id="canvas-wrapper">
-		<svg id="canvas"></svg>
+	<div id="main-wrapper">
+		<input type="search" id="lastfm_name" placeholder="Your Last.fm username">
+		<svg id="canvas">
+			<defs id="mdef">
+				<pattern id="image" x="0" y="0" height="40" width="40">
+					<image x="-20" y="-20" width="90" height="90" xlink:href="http://userserve-ak.last.fm/serve/126/88760323.jpg"></image>
+				</pattern>
+			</defs>
+		</svg>
 	</div>
+	<script type="text/javascript" src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
 	<script src="http://d3js.org/d3.v3.min.js"></script>
+	<script src="js/sparql.js"></script>
 	<script src="js/main.js"></script>
 </body>
 </html>
