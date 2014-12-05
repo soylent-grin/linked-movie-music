@@ -12,6 +12,7 @@
 
 	var URLS = {
 		lastfm_users_top_artists: "http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user={0}&api_key=d90958eeec954a5f7620284eb1a62f9e&format=json",
+		lastfm_user_info: "http://ws.audioscrobbler.com/2.0/?method=user.getinfo&user={0}&api_key=d90958eeec954a5f7620284eb1a62f9e&format=json",
 		linkedmdb: "http://www.linkedmdb.org/sparql"
 	};
 
@@ -22,14 +23,12 @@
 		"			<http://data.linkedmdb.org/resource/movie/producer> ?ma;",
 		"			<http://purl.org/dc/terms/title> ?movieName.",
 		"	?ma <http://data.linkedmdb.org/resource/movie/producer_name> ?movieAuthor.",
+		//"	?movie <http://data.linkedmdb.org/resource/movie/initial_release_date> ?date.",
 		"	?mc <http://data.linkedmdb.org/resource/movie/music_contributor_name> ?composerName.",
+		//"	?movie <http://data.linkedmdb.org/resource/movie/genre> ?g.",
+		//"	?g <http://data.linkedmdb.org/resource/movie/film_genre_name> ?genre.",
 		"}"
 	].join(' ');
-
-
-
-	var TYPES = {
-	}
 
 	var DataProvider = function() {
 		this._user = null;
@@ -90,9 +89,14 @@
 					if (!founded) {
 						artist.children.push({
 							name: movie.movieName.value,
-							author: movie.movieAuthor.value,
+							author: [ movie.movieAuthor.value ],
+							//genre: movie.genre.value,
+							//date: movie.date.value,
+							composer: artist.name,
 							type: "movie"
 						});
+					} else {
+						founded.author.push(movie.movieAuthor.value);
 					}
 				} else {
 					console.warn("Unexpected artist: " + movie.composerName);
@@ -106,8 +110,40 @@
 			});
 			this._data.children = new_artists;
 		},
+		is_connected_nodes: function(id1, id2) {
+			var is_connected = false;
+			this._data.children.forEach(function(artist) {
+				if (artist.id === id1) {
+					artist.children.forEach(function(movie) {
+						if (movie.id === id2) {
+							is_connected = true;
+						}
+					});
+				} else if (artist.id === id2) {
+					artist.children.forEach(function(movie) {
+						if (movie.id === id1) {
+							is_connected = true;
+						}
+					});
+				}
+			});
+			return is_connected;
+		}, 
+		is_connected_links: function(l, id) {
+			//return false;
+			if (l.source.type === "user" && (l.target.id == id) ) {
+				return true;
+			}
+			if (l.target.id == id || l.source.id == id) {
+				return true;
+			}  
+			return false;
+		},
 		get_data: function() {
 			return this._data;
+		},
+		set_data: function(key, value) {
+			this._data[key] = value;
 		}
 	};
 	var DATA_PROVIDER = new DataProvider();
@@ -142,6 +178,16 @@
 
 			this.node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 		},
+		show_info: function(d) {
+			if (d.type === "movie") {
+				$("#movie-name span").text(d.name);
+				$("#movie-author span").text(d.author.join(", "));
+				$("#movie-genre span").text(d.genre);
+				$("#movie-date span").text(d.date);
+				$("#movie-composer span").text(d.composer);
+				$("#info").show();
+			}
+		},
 		render: function(data) {
 			var that = this;
 			$('#main-wrapper').removeAttr('class').addClass('graph');
@@ -150,10 +196,10 @@
 							.size([document.getElementById('canvas').offsetWidth, document.getElementById('canvas').offsetHeight])
 							.on("tick", this.on_tick.bind(this));
 
-			this.svg.selectAll(".node").remove();
+			this.svg.selectAll("g").remove();
 			this.svg.selectAll(".link").remove();
 
-			this.node = this.svg.selectAll(".node");
+			this.node = this.svg.selectAll("g");
 			this.link = this.svg.selectAll(".link");
 
 			var nodes = this.flatten(data);
@@ -182,26 +228,46 @@
 
 			this.node = this.node.data(nodes)
 				.enter().append("g")
-				.attr("class", "node")
+				.attr("id", function(d) { return d.id; })
+				.attr("class", function(d) { return d.type; })
 				.on('mouseover', function(d) {
-					that.nodes.addClass('not_active');
+					if (d.type !=="user") {
+						that.node.attr("active", function(n) { return DATA_PROVIDER.is_connected_nodes(d.id, n.id) ? "true" : "false" });
+						that.link.attr("active", function(l) { return DATA_PROVIDER.is_connected_links(l, d.id) ? "true" : "false"   })
+					}
+					d3.select(this).attr("active", "true");
 				})
 				.on('mouseout', function(d) {
-					console.log("mouseout");
-					console.log(d);
+					that.node.attr('active', "");
+					that.link.attr('active', "");
 				})
+				.on("click", this.show_info)
 				.call(force.drag);
 
-			this.node.append("circle")
-				.attr("class", function(d) { return d.type; })
-				//.style("fill", function(d) { if (d.type == "user") { return "url(#image)"; }})
-				.attr("r", function(d) { 
-					if (d.type === "user") {
-						return d.name.length * 3;
-					} else {
-						return Math.sqrt(d.count) || 10; 
+			var n;
+			this.node.each(function() {
+				n = d3.select(this);
+				if (n.attr("class") !== "user") {
+					n.append("circle")
+						.attr("r", function(d) { return Math.sqrt(d.count) || 10 } );
+				} else {
+					d3.select("#image image").attr("xlink:href", data.user_info.image[1]["#text"]);
+					
+					var img = new Image();
+					img.src = data.user_info.image[1]["#text"];
+					img.onload = function() {
+						var width = this.width;
+						var height = this.height;
+
+						width > height ? width = height : height = width;
+
+						n.append("circle")
+							.attr("fill", "url(#image)")
+							.attr("r", width / 2);
 					}
-				});
+					
+				}
+			});
 
 			this.node.append("text")
 				.attr("dx", function(d) {
@@ -240,20 +306,30 @@
 			$.ajax({
 				url: URLS.lastfm_users_top_artists.format(name),
 				success: function(data) {
-					if (!data.error) {
+					if (!data.error && data.topartists["@attr"]) {
 						DATA_PROVIDER.prepare_lastfm_data(data);
-						$.ajax({
+						var sparql = $.ajax({
 							type: "POST",
 							url: "/sparql/",
 							dataType: "json",
 							data: that.build_query(data.topartists.artist),
 							success: function(data) {
-								DATA_PROVIDER.prepare_mdb_data(data.results.bindings);
-								VISUALISER.render(DATA_PROVIDER.get_data());
+								
 							},
 							error: function() {
 								console.error('failed to query SPARQL endpoint');
 							}
+						});
+						var user_info = $.ajax({
+							url: URLS.lastfm_user_info.format(data.topartists["@attr"].user)
+						});
+						$.when(sparql, user_info).then(function(sparql_, user_info_) {
+							sparql_ = sparql_[0];
+							user_info_ = user_info_[0];
+
+							DATA_PROVIDER.set_data("user_info", user_info_.user);
+							DATA_PROVIDER.prepare_mdb_data(sparql_.results.bindings);
+							VISUALISER.render(DATA_PROVIDER.get_data());
 						});
 					} else {
 						$('#main-wrapper').removeAttr('class');
@@ -277,6 +353,7 @@
 			});
 			$('#back').on('click', function(e) {
 				e.preventDefault();
+				$("#info").hide();
 				$('#lastfm_name').val('').focus();
 				$('#main-wrapper').removeAttr('class');
 			});

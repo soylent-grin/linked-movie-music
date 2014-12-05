@@ -9,6 +9,8 @@ body {
 body {
 	background-image: url('/img/background.svg');
 	position: relative;
+	background-position: center;
+	background-size: cover;
 }
 
 * {
@@ -45,7 +47,7 @@ input.error {
 	top: 20px;
 	bottom: 20px;
 	right: 20px;
-
+	overflow: hidden;
 	box-shadow: 0 0 4px rgba(0,0,0,0.4);
 	background-color: rgba(0,0,0,0.1);
 }
@@ -114,30 +116,49 @@ input {
 
 text {
   pointer-events: none;
-  font: 10px "Open Sans" sans-serif;
+  font: 12px "Open Sans" sans-serif;
 }
 
-.artist,
-.movie,
+.artist circle,
+.movie circle,
 .user {
-  cursor: pointer;
    stroke-width: 2px;
 }
 
 
-.artist {
+.artist circle {
 	fill: #2196F3;
 	stroke: rgba(5, 100, 158, 0.73);
 }
 
-.movie {
+.movie circle {
+
+  	cursor: pointer;
 	fill: #FF5722;
 	stroke: rgba(163, 0, 0, 0.73);
 }
 
-.user {
-	fill: #51DACD;
+.user circle {
 	stroke: rgba(1, 121, 109, 0.67);
+}
+
+.user text {
+	display: none;
+}
+
+[active=true] text {
+	font-size: 14px;
+}
+
+.user[active=false] {
+	opacity: 1;
+}
+[active=false] {
+	opacity: 0.3;
+	stroke-opacity: .3;
+}
+[active=false] text{
+	display: none;
 }
 
 .link {
@@ -145,3 +166,24 @@ text {
   stroke: #7E8081;
   stroke-width: 1px;
 }
+
+#info {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	display: none;
+	max-width: 200px;
+	right: 0;
+	color: rgba(255,255,255,.8);
+	background-color: rgba(0,0,0,0.3);
+	padding: 10px;
+}
+
+#info label {
+	font-weight: bold;
+	margin-right: 5px;
+	display: inline-block; 
+}
+#info div {
+	margin-bottom: 10px;
+} 

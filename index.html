@@ -9,18 +9,22 @@
 <body>	
 	<div id="main-wrapper">
 		<a href="" id="back">Search another</a>
-		<input type="search" id="lastfm_name" placeholder="Your Last.fm username">
+		<input type="text" id="lastfm_name" placeholder="Your Last.fm username">
 		<svg id="canvas">
 			<defs id="mdef">
-				<pattern id="image" x="0" y="0" height="40" width="40">
-					<image x="-20" y="-20" width="90" height="90" xlink:href="http://userserve-ak.last.fm/serve/126/88760323.jpg"></image>
-				</pattern>
+				<pattern id="image" x="-50" y="-50" patternUnits="userSpaceOnUse" width="100" height="100">
+			    	<image x="0" y="0" xlink:href="" width="100" height="100"></image>
+			    </pattern>
 			</defs>
 		</svg>
+		<div id="info">
+			<div id="movie-name"><label for="">Film: </label><span></span></div>
+			<div id="movie-author"><label for="">Author: </label><span></span></div>
+			<div id="movie-composer"><label for="">Composer: </label><span></span></div>
+		</div>
 	</div>
 	<script type="text/javascript" src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
 	<script src="http://d3js.org/d3.v3.min.js"></script>
-	<script src="js/sparql.js"></script>
 	<script src="js/main.js"></script>
 </body>
 </html>
