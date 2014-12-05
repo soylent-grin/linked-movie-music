@@ -1,6 +1,8 @@
 ;(function() {
 	'use strict';
 
+
+
 	//string formatting god, follow him!
 	String.prototype.format = function() {
 		var pattern = /\{\d+\}/g;
@@ -24,15 +26,17 @@
 		"}"
 	].join(' ');
 
+
+
 	var TYPES = {
 	}
 
-	var Visualiser = function() {
+	var DataProvider = function() {
 		this._user = null;
 		this._data = {};
 	};
-	Visualiser.prototype = {
-		constructor: Visualiser,
+	DataProvider.prototype = {
+		constructor: DataProvider,
 		get_movie: function(artist, name) {
 			var founded = null;
 			artist.children.forEach(function(movie) {
@@ -82,7 +86,7 @@
 			data.forEach(function(movie) {
 				artist = that.get_artist(movie.composerName.value);
 				if (artist) {
-					founded = that.get_movie(artist, movie.movieName.value)
+					founded = that.get_movie(artist, movie.movieName.value);
 					if (!founded) {
 						artist.children.push({
 							name: movie.movieName.value,
@@ -101,109 +105,122 @@
 				}
 			});
 			this._data.children = new_artists;
-			this.build_layout();
 		},
-		build_layout: function() {
-			function on_tick() {
-				link.attr("x1", function(d) { return d.source.x; })
-				      .attr("y1", function(d) { return d.source.y; })
-				      .attr("x2", function(d) { return d.target.x; })
-				      .attr("y2", function(d) { return d.target.y; });
+		get_data: function() {
+			return this._data;
+		}
+	};
+	var DATA_PROVIDER = new DataProvider();
 
-				node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+	var Visualiser = function() {
+		this.svg = d3.select("svg");
+	};
+	Visualiser.prototype = {
+		constructor: Visualiser,
+		flatten: function(root) {
+			var nodes = [], i = 0;
+
+			function recurse(node) {
+				if (node.children) {
+					node.children.forEach(recurse);
+				}
+				if (!node.id) {
+					node.id = ++i;
+				}
+				nodes.push(node);
 			}
 
-			var svg = d3.select("svg").style("display", "block");
-			$('#lastfm_name').fadeOut();
+			recurse(root);
+			return nodes;
+		},
+
+		on_tick: function() {
+			this.link.attr("x1", function(d) { return d.source.x; })
+				  .attr("y1", function(d) { return d.source.y; })
+				  .attr("x2", function(d) { return d.target.x; })
+				  .attr("y2", function(d) { return d.target.y; });
+
+			this.node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+		},
+		render: function(data) {
+			var that = this;
+			$('#main-wrapper').removeAttr('class').addClass('graph');
 
 			var force = d3.layout.force()
-						    .size([document.getElementById('canvas').offsetWidth, document.getElementById('canvas').offsetHeight])
-						    .on("tick", on_tick);
+							.size([document.getElementById('canvas').offsetWidth, document.getElementById('canvas').offsetHeight])
+							.on("tick", this.on_tick.bind(this));
 
-			var link = svg.selectAll(".link");
+			this.svg.selectAll(".node").remove();
+			this.svg.selectAll(".link").remove();
 
-   			var nodes = flatten(this._data);
-      		var links = d3.layout.tree().links(nodes);
-      		
-      		force
-		      .nodes(nodes)
-		      .charge(-140)
-		      .distance(70)
-		      .gravity(0.05)
-		      .links(links)
-		      .start();
+			this.node = this.svg.selectAll(".node");
+			this.link = this.svg.selectAll(".link");
 
-		      // Update the links…
-			link = link.data(links, function(d) { return d.target.id; });
+			var nodes = this.flatten(data);
+			var links = d3.layout.tree().links(nodes);
+			force
+			  .nodes(nodes)
+			  .charge(-380)
+			  .distance(50)
+			  .gravity(0.05)
+			  .links(links)
+			  .start();
+
+			  // Update the links…
+			this.link = this.link.data(links, function(d) { return d.target.id; });
 
 			// Exit any old links.
-			link.exit().remove();
+			this.link.exit().remove();
 
 			// Enter any new links.
-			link.enter().insert("line", ".node")
+			this.link.enter().insert("line", ".node")
 				.attr("class", "link")
 				.attr("x1", function(d) { return d.source.x; })
 				.attr("y1", function(d) { return d.source.y; })
 				.attr("x2", function(d) { return d.target.x; })
 				.attr("y2", function(d) { return d.target.y; });
 
-/*
-			// Enter any new nodes.
-			node.enter().append("circle")
-				.attr("class", function(d) { return d.type })
-				.attr("cx", function(d) { return d.x; })
-				.attr("cy", function(d) { return d.y; })
-				.attr("r", function(d) { 
-					if (d.type === "user") {
-						return 40;
-					} else {
-						return Math.sqrt(d.count) || 4.5; 
-					}
-				})
-				.call(force.drag);
-*/
-			var node = svg.selectAll(".node")
-				.data(nodes)
+			this.node = this.node.data(nodes)
 				.enter().append("g")
 				.attr("class", "node")
+				.on('mouseover', function(d) {
+					that.nodes.addClass('not_active');
+				})
+				.on('mouseout', function(d) {
+					console.log("mouseout");
+					console.log(d);
+				})
 				.call(force.drag);
 
-			node.append("circle")
+			this.node.append("circle")
 				.attr("class", function(d) { return d.type; })
-				.style("fill", function(d) { if (d.type == "user") { return "url(#image)"; }})
+				//.style("fill", function(d) { if (d.type == "user") { return "url(#image)"; }})
 				.attr("r", function(d) { 
 					if (d.type === "user") {
-						return 30;
+						return d.name.length * 3;
 					} else {
 						return Math.sqrt(d.count) || 10; 
 					}
 				});
 
-			node.append("text")
-				.attr("dx", 12)
-				.attr("dy", ".35em")
+			this.node.append("text")
+				.attr("dx", function(d) {
+					if (d.type === "user") {
+						return - (d.name.length * 4.5) / 2;
+					} else {
+						return Math.sqrt(d.count) || 10; 
+					}
+				})
+				.attr("dy", 5)
 				.text(function(d) { return d.name });
 		}
 	};
+	var VISUALISER = new Visualiser();
 
-	function flatten(root) {
-		var nodes = [], i = 0;
-
-		function recurse(node) {
-		if (node.children) node.children.forEach(recurse);
-		if (!node.id) node.id = ++i;
-		nodes.push(node);
-		}
-
-		recurse(root);
-		return nodes;
-	}
 
 	var App = function() {
-		this.vis = new Visualiser();
 		this.init();
 	};
-
 	App.prototype = {
 		constructor: App,
 		init: function() {
@@ -219,135 +236,52 @@
 		},
 		process: function(name) {
 			var that = this;
+			$('#main-wrapper').removeAttr('class').addClass('in-progress');
 			$.ajax({
 				url: URLS.lastfm_users_top_artists.format(name),
 				success: function(data) {
-					that.vis.prepare_lastfm_data(data);
-					var sparqler = new SPARQL.Service(URLS.linkedmdb);
-					sparqler.setPrefix("dc", "http://purl.org/dc/terms/"); 
-					sparqler.setOutput("json");
-					sparqler.query(that.build_query(data.topartists.artist), {
-						success: function(json) { 
-							that.vis.prepare_mdb_data(json.results.bindings);
-						}
-					});
+					if (!data.error) {
+						DATA_PROVIDER.prepare_lastfm_data(data);
+						$.ajax({
+							type: "POST",
+							url: "/sparql/",
+							dataType: "json",
+							data: that.build_query(data.topartists.artist),
+							success: function(data) {
+								DATA_PROVIDER.prepare_mdb_data(data.results.bindings);
+								VISUALISER.render(DATA_PROVIDER.get_data());
+							},
+							error: function() {
+								console.error('failed to query SPARQL endpoint');
+							}
+						});
+					} else {
+						$('#main-wrapper').removeAttr('class');
+						$('#lastfm_name').addClass('error');
+					}
 				},
 				error: function() {
-
+					$('#main-wrapper').removeAttr('class');
 				}
 			});
 		},
 		add_event_listeners: function() {
 			var that = this;
 			$('#lastfm_name').focus().on('keyup', function(e) {
-				alert('Key pressed: ' + e.keyCode);
 				if (e.which == 13) {
 					that.process($(this).val());
 				}
+			});
+			$('body').on('click focus', '.error', function() {
+				$(this).removeClass('error');
+			});
+			$('#back').on('click', function(e) {
+				e.preventDefault();
+				$('#lastfm_name').val('').focus();
+				$('#main-wrapper').removeAttr('class');
 			});
 		}
 	};
 
 	new App();
-/*
-
-	function prepare_nodes(data) {
-		var array = [];
-		var id = 0;
-
-		function push_to(el, type) {
-			el.id = id++;
-			el.type = type;
-			array.push(el);
-		}
-		data.producers.forEach(function(p) {
-			push_to(p, "producer");
-		});
-		data.composers.forEach(function(c) {
-			push_to(c, "composer");
-		});
-
-		console.log(array);
-		return array;
-	}
-
-	function prepare_links(data) {
-		var array = [];
-		var link;
-
-		data.tracks.forEach(function(t) {
-			link = {};
-			for (var i = 0; i < data.producers.length; i++) {
-				if (data.producers[i].name === t.producer) {
-					link.source = data.producers[i].id;
-					break;
-				}
-			}
-			for (var j = 0; j < data.composers.length; j++) {
-				if (data.composers[j].name === t.composer) {
-					link.target = data.composers[j].id;
-					break;
-				}
-			}
-			array.push(link);
-		});
-
-		console.log(array);
-		return array;
-	}
-
-	function tick() {
-		link.attr("x1", function(d) { return d.source.x; })
-			.attr("y1", function(d) { return d.source.y; })
-			.attr("x2", function(d) { return d.target.x; })
-			.attr("y2", function(d) { return d.target.y; });
-
-		node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-	}
-
-	function on_mouseover() {
-		arguments
-
-	}
-
-	var svg = d3.select("svg");
-
-
-console.log(document.getElementById('canvas').offsetWidth, document.getElementById('canvas').offsetHeight);
-	var layout = d3.layout.force()
-					.size([document.getElementById('canvas').offsetWidth, document.getElementById('canvas').offsetHeight])
-					.on("tick", tick);
-
-
-	var nodes = prepare_nodes(mock);
-	var links = prepare_links(mock, nodes);
-
-	layout.nodes(nodes)
-			.links(links)
-			.gravity(.05)
-		    .distance(100)
-		    .charge(-200)
-			.start();
-	var link = svg.selectAll(".link")
-		.data(links)
-		.enter().append("line")
-		.attr("class", "link");
-
-	var node = svg.selectAll(".node")
-		.data(nodes)
-		.enter().append("g")
-		.attr("class", "node")
-		.call(layout.drag)
-
-	node.append("circle")
-		.attr("class", function(d) { console.log(d.type); return d.type })
-		.attr("r", function(d) { return Math.sqrt(d.total) * 6 || 4.5; })
-		.on("mouseover", on_mouseover);
-
-	node.append("text")
-		.attr("dx", 12)
-		.attr("dy", ".35em")
-		.text(function(d) { return d.name });
-
-*/
 })();

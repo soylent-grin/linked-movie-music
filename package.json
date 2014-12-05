@@ -1,0 +1,18 @@
+{
+  "name": "linked-movie-music",
+  "version": "0.0.0",
+  "description": "Suggest films based on lastfm profile top composers",
+  "main": "Gruntfile.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/soylent-grin/linked-movie-music.git"
+  },
+  "author": "soylent-grin",
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/soylent-grin/linked-movie-music/issues"
+  },
+  "devDependencies": {
+    "sparql-client": "~0.1.0"
+  }
+}

@@ -1,7 +1,6 @@
 linked-movie-music
 ==================
 
-	sudo npm install grunt-http-server
-	grunt http-server:dev
+	node server
 
-Port 3001.
+Port 3301.
