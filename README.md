@@ -1,9 +1,9 @@
 linked-movie-music
 ==================
 	
-	Recommend movies based on Last.fm account
+Recommend movies based on Last.fm account
 
-	![ScreenShot](http://prntscr.com/5dkrp0)
+![ScreenShot](http://i.imgur.com/CRBDgT9.jpg)
 
 	npm install
 	node server
