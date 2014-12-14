@@ -193,7 +193,7 @@
 			$('#main-wrapper').removeAttr('class').addClass('graph');
 
 			var force = d3.layout.force()
-							.size([document.getElementById('canvas').offsetWidth, document.getElementById('canvas').offsetHeight])
+							.size([$('#canvas').width(), $('#canvas').height()])
 							.on("tick", this.on_tick.bind(this));
 
 			this.svg.selectAll("g").remove();
@@ -251,15 +251,23 @@
 					n.append("circle")
 						.attr("r", function(d) { return Math.sqrt(d.count) || 10 } );
 				} else {
-					d3.select("#image image").attr("xlink:href", data.user_info.image[1]["#text"]);
+					var src = data.user_info.image[1]["#text"];
+					if (src === "") {
+						src = "http://cdn.last.fm/flatness/responsive/2/noimage/default_user_140_g2.png";
+					}
+					d3.select("#image image").attr("xlink:href", src);
 					
 					var img = new Image();
-					img.src = data.user_info.image[1]["#text"];
+					img.src = src;
 					img.onload = function() {
 						var width = this.width;
 						var height = this.height;
 
 						width > height ? width = height : height = width;
+
+						if (width > 70) {
+							width = 70;
+						}
 
 						n.append("circle")
 							.attr("fill", "url(#image)")
@@ -305,6 +313,7 @@
 			$('#main-wrapper').removeAttr('class').addClass('in-progress');
 			$.ajax({
 				url: URLS.lastfm_users_top_artists.format(name),
+				dataType: "json",
 				success: function(data) {
 					if (!data.error && data.topartists["@attr"]) {
 						DATA_PROVIDER.prepare_lastfm_data(data);

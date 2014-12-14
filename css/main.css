@@ -16,7 +16,7 @@ body {
 * {
 	box-sizing: border-box;
 	-moz-box-sizing: border-box;
-	font-family: "Open Sans" sans-serif;
+	font-family: "Open Sans", sans-serif;
 	font-weight: 100;
 }
 
@@ -116,7 +116,8 @@ input {
 
 text {
   pointer-events: none;
-  font: 12px "Open Sans" sans-serif;
+  font-family:  "Open Sans", sans-serif;
+  font-size: 12px;
 }
 
 .artist circle,
