@@ -1,8 +1,6 @@
 ;(function() {
 	'use strict';
 
-
-
 	//string formatting god, follow him!
 	String.prototype.format = function() {
 		var pattern = /\{\d+\}/g;
@@ -194,12 +192,7 @@
 		},
 		show_info: function(d) {
 			if (d.type === "movie") {
-				$("#movie-name span").text(d.name);
-				$("#movie-author span").text(d.author.join(", "));
-				$("#movie-genre span").text(d.genre);
-				$("#movie-date span").text(d.date);
-				$("#movie-composer span").text(d.composer);
-				$("#info").show();
+				$('body').trigger('movieSelected', d);
 			}
 		},
 		render: function(data) {
@@ -287,7 +280,6 @@
 							.attr("fill", "url(#image)")
 							.attr("r", width / 2);
 					}
-					
 				}
 			});
 
@@ -314,13 +306,40 @@
 		init: function() {
 			this.add_event_listeners();
 		},
+		build_sparql_query: function(endpoint, data, on_success) {
+			return $.ajax({
+				type: "POST",
+				url: "/sparql/?endpoint=" + endpoint,
+				dataType: "json",
+				data: data,
+				success: on_success,
+				error: function() {
+					console.error('failed to query SPARQL endpoint ' + endpoint);
+				}
+			});
+		},
 		build_linkedmdb_query: function(artists) {
 			var query = SPARQL.linkedmdb.query.get_movies_by_composers;
 			var array = [];
 			artists.forEach(function(artist) {
 				array.push('{ ?mc  <http://data.linkedmdb.org/resource/movie/music_contributor_name> "{0}" }'.format(artist.name));
 			});
-			return query.format(array.join(' UNION '));
+			return this.build_sparql_query(SPARQL.linkedmdb.endpoint, query.format(array.join(' UNION ')), null);
+		},
+		build_dbpedia_query: function(movie, on_success) {
+
+			return this.build_sparql_query(SPARQL.dbpedia.endpoint, SPARQL.dbpedia.query.get_movie_info.format(movie) , on_success);
+		},
+		show_info: function(movie) {
+			$("#info").show().addClass('preloader');
+			this.build_dbpedia_query(movie.name, function(data) {
+
+				$("#movie-name span").text(movie.name);
+				$("#movie-author span").text(movie.author.join(", "));
+				$("#movie-genre span").text(movie.genre);
+				$("#movie-date span").text(movie.date);
+				$("#movie-composer span").text(movie.composer);
+			})
 		},
 		process: function(name) {
 			var that = this;
@@ -331,21 +350,10 @@
 				success: function(data) {
 					if (!data.error && data.topartists["@attr"]) {
 						DATA_PROVIDER.prepare_lastfm_data(data);
-						var sparql = $.ajax({
-							type: "POST",
-							url: "/sparql/?endpoint=" + SPARQL.linkedmdb.endpoint,
-							dataType: "json",
-							data: that.build_linkedmdb_query(data.topartists.artist),
-							success: function(data) {
-								
-							},
-							error: function() {
-								console.error('failed to query SPARQL endpoint');
-							}
-						});
-						var user_info = $.ajax({
-							url: LASTFM_API.user_info.format(data.topartists["@attr"].user)
-						});
+
+						var sparql = that.build_linkedmdb_query(data.topartists.artist);
+						var user_info = $.ajax({ url: LASTFM_API.user_info.format(data.topartists["@attr"].user) });
+
 						$.when(sparql, user_info).then(function(sparql_, user_info_) {
 							sparql_ = sparql_[0];
 							user_info_ = user_info_[0];
@@ -379,6 +387,9 @@
 				$("#info").hide();
 				$('#lastfm_name').val('').focus();
 				$('#main-wrapper').removeAttr('class');
+			});
+			$('body').on('movieSelected', function(e, data) {
+				that.show_info(data);
 			});
 		}
 	};
