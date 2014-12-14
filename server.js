@@ -3,32 +3,43 @@ var http = require("http"),
 	path = require("path"),
 	fs = require("fs"),
 	SparqlClient = require('sparql-client'),
-	port = process.argv[2] || 3301,
-	endpoint = "http://www.linkedmdb.org/sparql";
+	port = process.argv[2] || 3301;
 
 var util = require('util');
 
 http.createServer(function(request, response) {
 
 	var uri = url.parse(request.url).pathname;
-	console.log('Requested ' + uri, ", method " + request.method);
+	console.log(request.method  + ' ' + uri);
 
 	if(request.method === "POST") {
-		if (uri === "/sparql/") {
-			var query = '';
-			request.on('data', function(data) {
-				query += data;
-				if(query.length > 1e7) {
-					response.writeHead(413, 'Request Entity Too Large', {'Content-Type': 'text/html'});
-				}
-			});
-			request.on('end', function() {
-				var client = new SparqlClient(endpoint);
-				client.query(query).execute(function(err, results) {
-					response.writeHead(200, { 'Content-Type': 'application/json' });
-					response.end(JSON.stringify(results));
+		if (uri.indexOf("/sparql/") === 0) {
+			var query = url.parse(request.url, true).query;
+			if (query && query.endpoint) {
+				query.body = '';
+				request.on('data', function(data) {
+					query.body += data;
+					if(query.body.length > 1e7) {
+						response.writeHead(413, 'Request Entity Too Large', {'Content-Type': 'text/html'});
+					}
 				});
-			});
+				request.on('end', function() {
+					try {
+						var client = new SparqlClient(query.endpoint);
+						client.query(query.body).execute(function(err, results) {
+							response.writeHead(200, { 'Content-Type': 'application/json' });
+							response.end(JSON.stringify(results));
+						});
+					} catch(e) {
+						console.log(e.message);
+						response.writeHead(400);
+						response.end('Bad Request');
+					}
+				});
+			} else {
+				response.writeHead(400);
+				response.end('Bad Request');
+			}
 		} else {
 			response.writeHead(405, {"Content-Type": "text/plain"});
 			response.write("405 Method not allowed\n");

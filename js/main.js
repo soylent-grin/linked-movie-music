@@ -10,25 +10,39 @@
 		return this.replace(pattern, function(capture){ return args[capture.match(/\d+/)]; });
 	};
 
-	var URLS = {
-		lastfm_users_top_artists: "http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user={0}&api_key=d90958eeec954a5f7620284eb1a62f9e&format=json",
-		lastfm_user_info: "http://ws.audioscrobbler.com/2.0/?method=user.getinfo&user={0}&api_key=d90958eeec954a5f7620284eb1a62f9e&format=json",
-		linkedmdb: "http://www.linkedmdb.org/sparql"
+	var LASTFM_API = {
+		users_top_artists: "http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user={0}&api_key=d90958eeec954a5f7620284eb1a62f9e&format=json",
+		user_info: "http://ws.audioscrobbler.com/2.0/?method=user.getinfo&user={0}&api_key=d90958eeec954a5f7620284eb1a62f9e&format=json"
 	};
 
-	var SPARQL_BASE = [
-		"SELECT ?movieName ?movieAuthor ?composerName WHERE {",
-		"	{0}", // music contributors (mc) union
-		"	?movie <http://data.linkedmdb.org/resource/movie/music_contributor> ?mc;",
-		"			<http://data.linkedmdb.org/resource/movie/producer> ?ma;",
-		"			<http://purl.org/dc/terms/title> ?movieName.",
-		"	?ma <http://data.linkedmdb.org/resource/movie/producer_name> ?movieAuthor.",
-		//"	?movie <http://data.linkedmdb.org/resource/movie/initial_release_date> ?date.",
-		"	?mc <http://data.linkedmdb.org/resource/movie/music_contributor_name> ?composerName.",
-		//"	?movie <http://data.linkedmdb.org/resource/movie/genre> ?g.",
-		//"	?g <http://data.linkedmdb.org/resource/movie/film_genre_name> ?genre.",
-		"}"
-	].join(' ');
+	var SPARQL = {
+		linkedmdb: {
+			endpoint: 'http://www.linkedmdb.org/sparql',
+			query: {
+				get_movies_by_composers: [
+					"SELECT ?movieName ?movieAuthor ?composerName WHERE {",
+					"	{0}", // music contributors (mc) union
+					"	?movie <http://data.linkedmdb.org/resource/movie/music_contributor> ?mc;",
+					"			<http://data.linkedmdb.org/resource/movie/producer> ?ma;",
+					"			<http://purl.org/dc/terms/title> ?movieName.",
+					"	?ma <http://data.linkedmdb.org/resource/movie/producer_name> ?movieAuthor.",
+					//"	?movie <http://data.linkedmdb.org/resource/movie/initial_release_date> ?date.",
+					"	?mc <http://data.linkedmdb.org/resource/movie/music_contributor_name> ?composerName.",
+					//"	?movie <http://data.linkedmdb.org/resource/movie/genre> ?g.",
+					//"	?g <http://data.linkedmdb.org/resource/movie/film_genre_name> ?genre.",
+					"}"
+				].join(' ')
+			}
+		},
+		dbpedia: {
+			endpoint: '/',
+			query: {
+				get_movie_info: [
+
+				].join(' ')
+			}
+		}
+	};
 
 	var DataProvider = function() {
 		this._user = null;
@@ -300,28 +314,28 @@
 		init: function() {
 			this.add_event_listeners();
 		},
-		build_query: function(artists) {
-			var query = SPARQL_BASE;
+		build_linkedmdb_query: function(artists) {
+			var query = SPARQL.linkedmdb.query.get_movies_by_composers;
 			var array = [];
 			artists.forEach(function(artist) {
 				array.push('{ ?mc  <http://data.linkedmdb.org/resource/movie/music_contributor_name> "{0}" }'.format(artist.name));
 			});
-			return SPARQL_BASE.format(array.join(' UNION '));
+			return query.format(array.join(' UNION '));
 		},
 		process: function(name) {
 			var that = this;
 			$('#main-wrapper').removeAttr('class').addClass('in-progress');
 			$.ajax({
-				url: URLS.lastfm_users_top_artists.format(name),
+				url: LASTFM_API.users_top_artists.format(name),
 				dataType: "json",
 				success: function(data) {
 					if (!data.error && data.topartists["@attr"]) {
 						DATA_PROVIDER.prepare_lastfm_data(data);
 						var sparql = $.ajax({
 							type: "POST",
-							url: "/sparql/",
+							url: "/sparql/?endpoint=" + SPARQL.linkedmdb.endpoint,
 							dataType: "json",
-							data: that.build_query(data.topartists.artist),
+							data: that.build_linkedmdb_query(data.topartists.artist),
 							success: function(data) {
 								
 							},
@@ -330,7 +344,7 @@
 							}
 						});
 						var user_info = $.ajax({
-							url: URLS.lastfm_user_info.format(data.topartists["@attr"].user)
+							url: LASTFM_API.user_info.format(data.topartists["@attr"].user)
 						});
 						$.when(sparql, user_info).then(function(sparql_, user_info_) {
 							sparql_ = sparql_[0];
