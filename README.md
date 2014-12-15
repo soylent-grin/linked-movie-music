@@ -1,7 +1,7 @@
 # linked-movie-music
 Recommend movies using Last.fm account
-		npm install
-		node server
+	npm install
+	node server
 	Port 3301.
 
 # Web-приложение Linked Movie Music -- Vision
@@ -88,6 +88,6 @@ http://109.234.34.200:3301/
 - Климов Николай
 - Чистяков Александр
 - Михеев Дмитрий
-- Алексей Андреев
+- Андреев Алексей
 
 НИУ ИТМО, гр. 6126, курс "Методы онтологического инжиниринга". Санкт-Петербург, 2014
