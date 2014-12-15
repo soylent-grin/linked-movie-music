@@ -18,11 +18,16 @@
 			endpoint: 'http://www.linkedmdb.org/sparql',
 			query: {
 				get_movies_by_composers: [
-					"SELECT ?movieName ?movieAuthor ?composerName WHERE {",
+                    "PREFIX owl: <http://www.w3.org/2002/07/owl#>",
+					"SELECT ?movieName ?movieAuthor ?composerName ?dbpedia_movie_uri WHERE {",
 					"	{0}", // music contributors (mc) union
 					"	?movie <http://data.linkedmdb.org/resource/movie/music_contributor> ?mc;",
 					"			<http://data.linkedmdb.org/resource/movie/producer> ?ma;",
 					"			<http://purl.org/dc/terms/title> ?movieName.",
+                    "   optional{",
+                    "       ?movie owl:sameAs ?dbpedia_movie_uri.",
+                    "       filter regex(str(?dbpedia_movie_uri), 'dbpedia', 'i').",
+                    "   }.",
 					"	?ma <http://data.linkedmdb.org/resource/movie/producer_name> ?movieAuthor.",
 					//"	?movie <http://data.linkedmdb.org/resource/movie/initial_release_date> ?date.",
 					"	?mc <http://data.linkedmdb.org/resource/movie/music_contributor_name> ?composerName.",
@@ -33,11 +38,48 @@
 			}
 		},
 		dbpedia: {
-			endpoint: '/',
+            endpoint: 'http://www.dbpedia.org/sparql',
 			query: {
-				get_movie_info: [
+				get_movie_info_by_uri: [
+                    "PREFIX dbo: <http://dbpedia.org/ontology/>",
+                    "PREFIX dbpprop: <http://dbpedia.org/property/>",
+                    "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
+                    "PREFIX foaf: <http://xmlns.com/foaf/0.1/>",
+                    "",
+                    "SELECT DISTINCT",
+                        "(str(?abstract) as ?abstract_en),",
+                        "(MIN(str(?producer_name)) as ?producer_name_en),",
+                        "(str(?language) as ?language_en)",
+                    "WHERE",
+                    "{",
+                        "<{0}> dbo:abstract ?abstract ;",
+                              "dbo:producer ?producer ;",
+                              "dbpprop:language ?language .",
+                              "?producer foaf:name ?producer_name",
+                        "FILTER langMatches(lang(?abstract), 'EN').",
+                        "FILTER langMatches(lang(?producer_name), 'EN').",
+                   "}",
+                   "GROUP BY ?abstract ?language"
+                ].join(' '),
+                get_movie_info_by_name: [
+                    "PREFIX dbo: <http://dbpedia.org/ontology/>",
+                    "PREFIX dbpprop: <http://dbpedia.org/property/>",
+                    "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
+                    "PREFIX foaf: <http://xmlns.com/foaf/0.1/>",
+                    "SELECT DISTINCT (str(?abstract) as ?abstract_en), (MIN(str(?producer_name)) as ?producer_name_en), (str(?language) as ?language_en)",
 
-				].join(' ')
+                    "WHERE {",
+                    "?film a dbo:Film;",
+                          "dbo:abstract ?abstract ;",
+                          "dbo:producer ?producer ;",
+                          "dbpprop:language ?language ;",
+                          "foaf:name '{0}'@en .",
+                    "?producer foaf:name ?producer_name .",
+                    "FILTER langMatches(lang(?abstract), 'EN').",
+                    "FILTER langMatches(lang(?producer_name), 'EN')",
+                    "}",
+                    "GROUP BY ?abstract ?language",
+                ].join(' ')
 			}
 		}
 	};
@@ -102,6 +144,7 @@
 						artist.children.push({
 							name: movie.movieName.value,
 							author: [ movie.movieAuthor.value ],
+                            dbpedia_movie_uri: (movie.dbpedia_movie_uri)? decodeURI(movie.dbpedia_movie_uri.value): undefined,
 							//genre: movie.genre.value,
 							//date: movie.date.value,
 							composer: artist.name,
@@ -327,18 +370,31 @@
 			return this.build_sparql_query(SPARQL.linkedmdb.endpoint, query.format(array.join(' UNION ')), null);
 		},
 		build_dbpedia_query: function(movie, on_success) {
-
-			return this.build_sparql_query(SPARQL.dbpedia.endpoint, SPARQL.dbpedia.query.get_movie_info.format(movie) , on_success);
+            if(movie.dbpedia_movie_uri !== undefined) {
+                return this.build_sparql_query(SPARQL.dbpedia.endpoint, SPARQL.dbpedia.query.get_movie_info_by_uri.format(movie.dbpedia_movie_uri), on_success);
+            }
+            else {
+                return this.build_sparql_query(SPARQL.dbpedia.endpoint, SPARQL.dbpedia.query.get_movie_info_by_name.format(movie.name), on_success);
+            }
 		},
 		show_info: function(movie) {
 			$("#info").show().addClass('preloader');
-			this.build_dbpedia_query(movie.name, function(data) {
+			this.build_dbpedia_query(movie, function(data) {
+                try{
+                    var dbpedia_info = data.results.bindings[0];
+                    $("#movie-producer span").text(dbpedia_info.producer_name_en.value)
+                    $("#movie-abstract span").text(dbpedia_info.abstract_en.value)
+                    $("#movie-language span").text(dbpedia_info.language_en.value)
+                } catch(e) {
+                    console.error(e.message);
+                    console.stack(e.stack);
+                }
 
 				$("#movie-name span").text(movie.name);
 				$("#movie-author span").text(movie.author.join(", "));
-				$("#movie-genre span").text(movie.genre);
-				$("#movie-date span").text(movie.date);
 				$("#movie-composer span").text(movie.composer);
+				//$("#movie-genre span").text(movie.genre);
+				//$("#movie-date span").text(movie.date);
 			})
 		},
 		process: function(name) {
