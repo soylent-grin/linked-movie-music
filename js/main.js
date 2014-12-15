@@ -144,7 +144,7 @@
 						artist.children.push({
 							name: movie.movieName.value,
 							author: [ movie.movieAuthor.value ],
-                            dbpedia_movie_uri: (movie.dbpedia_movie_uri)? decodeURI(movie.dbpedia_movie_uri.value): undefined,
+                            dbpedia_movie_uri: (movie.dbpedia_movie_uri)? decodeURIComponent(movie.dbpedia_movie_uri.value): undefined,
 							//genre: movie.genre.value,
 							//date: movie.date.value,
 							composer: artist.name,
@@ -380,22 +380,33 @@
 		show_info: function(movie) {
 			$("#info").show().addClass('preloader');
 			this.build_dbpedia_query(movie, function(data) {
-                try{
-                    var dbpedia_info = data.results.bindings[0];
-                    $("#movie-producer span").text(dbpedia_info.producer_name_en.value)
-                    $("#movie-abstract span").text(dbpedia_info.abstract_en.value)
-                    $("#movie-language span").text(dbpedia_info.language_en.value)
-                } catch(e) {
-                    console.error(e.message);
-                    console.stack(e.stack);
-                }
-
+                var dbpedia_info = data.results.bindings[0];
+                fill_in_html_item_if_property_exists("movie-producer", dbpedia_info, "producer_name_en");
+                fill_in_html_item_if_property_exists("movie-abstract", dbpedia_info, "abstract_en");
+                fill_in_html_item_if_property_exists("movie-language", dbpedia_info, "language_en");
 				$("#movie-name span").text(movie.name);
 				$("#movie-author span").text(movie.author.join(", "));
 				$("#movie-composer span").text(movie.composer);
 				//$("#movie-genre span").text(movie.genre);
 				//$("#movie-date span").text(movie.date);
-			})
+			});
+            function fill_in_html_item_if_property_exists(element_id, obj, property_name) {
+                console.info("fill_in_html_item_if_property_exists was called");
+                var element_xpath = "#{0}".format(element_id);
+                var element_content_xpath = "#{0} span".format(element_id);
+                if(obj !== undefined && obj.hasOwnProperty(property_name)) {
+                    console.info("obj has property");
+                    $(element_xpath).show();
+                    $(element_content_xpath).show();
+                    $(element_content_xpath).text(obj[property_name].value);
+                }
+                else {
+                    console.info("obj hasn't property");
+                    $(element_xpath).hide();
+                    $(element_content_xpath).text("");
+                }
+            }
+
 		},
 		process: function(name) {
 			var that = this;
